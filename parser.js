@@ -4,7 +4,7 @@ require('dotenv').config()
 const GEMINI_API_KEY = process.env.API_KEY;
 const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
-const BATCH = "15";
+const BATCH = "14";
 
 const INPUT_FILE_NAMES = 
   [
