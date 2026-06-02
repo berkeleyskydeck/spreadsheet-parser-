@@ -37,7 +37,7 @@ async function parseSpreadsheetWithGemini(inputFileSource) {
             role: "user",
             parts: [
               {
-                text: `${DEI_PARSE_PROMPT}\n\nCSV input:\n${csvText}`,
+                text: `${PARSE_PROMPT}\n\nCSV input:\n${csvText}`,
               },
             ],
           },
