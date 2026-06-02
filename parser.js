@@ -2,13 +2,16 @@ const fs = require("fs/promises");
 require('dotenv').config()
 
 const GEMINI_API_KEY = process.env.API_KEY;
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.1-flash-lite";
+
+const BATCH = "15";
 
 const INPUT_FILE_NAMES = 
   [
-    "16",
-    "16-bsem",
-    "16-pad13",
+    `${BATCH}`,
+    `${BATCH}-bsem`,
+    `${BATCH}-pad13`,
+    `${BATCH}-ipp`,
 
   ];
 const PARSE_PROMPT =
