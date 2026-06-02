@@ -4,16 +4,18 @@ require('dotenv').config()
 const GEMINI_API_KEY = process.env.API_KEY;
 const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
-const BATCH = "14";
+const BATCH = "12";
+const BATCH_SIZE = 3;
 
 const INPUT_FILE_NAMES = 
-  [
-    `${BATCH}`,
-    `${BATCH}-bsem`,
-    `${BATCH}-pad13`,
-    `${BATCH}-ipp`,
+  Array(BATCH_SIZE).fill(null).map((_, i) => `${BATCH}-${i + 1}`)
+  // [
+  //   `${BATCH}`,
+  //   `${BATCH}-bsem`,
+  //   `${BATCH}-pad13`,
+  //   `${BATCH}-ipp`,
 
-  ];
+  // ];
 const PARSE_PROMPT =
   'You are a data formatter. Parse the DEI checkbox column for each person (columns mentioning "will be added to relevant communities") to extract ethnicity and gender, then return the full CSV with: Person X - Gender columns inserted after each person\'s (1, 2, 3) DEI column. Ethnicity options: African American/Black, American Indian/Alaskan Native, Asian American/Asian, Latinx, Middle Eastern, Pacific Islander, White/Cacasian. Gender options: Female, Male. Leave blank if no match. Return CSV only as text, no commentary.';
 
