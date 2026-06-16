@@ -1,73 +1,112 @@
 const fs = require("fs/promises");
-require('dotenv').config()
 
-const GEMINI_API_KEY = process.env.API_KEY;
-const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
-const BATCH = "12";
-const BATCH_SIZE = 3;
+const map = {
+  "UC Berkeley undergraduate/graduate/postdoc": "UCB Alumni",
+  "Asian or South Asian": "Asian American/Asian",
+  "Black or African-American": "African American/Black",
+  "Indegenous or Native American": "American Indian/Alaskan Native",
+  "Immigrant Founder or Foreign Founder": "",
+  "LGBTQ+": "",
+  "Female": "Female",
+}
 
-const INPUT_FILE_NAMES = 
-  Array(BATCH_SIZE).fill(null).map((_, i) => `${BATCH}-${i + 1}`)
-  // [
-  //   `${BATCH}`,
-  //   `${BATCH}-bsem`,
-  //   `${BATCH}-pad13`,
-  //   `${BATCH}-ipp`,
-
-  // ];
-const PARSE_PROMPT =
-  'You are a data formatter. Parse the DEI checkbox column for each person (columns mentioning "will be added to relevant communities") to extract ethnicity and gender, then return the full CSV with: Person X - Gender columns inserted after each person\'s (1, 2, 3) DEI column. Ethnicity options: African American/Black, American Indian/Alaskan Native, Asian American/Asian, Latinx, Middle Eastern, Pacific Islander, White/Cacasian. Gender options: Female, Male. Leave blank if no match. Return CSV only as text, no commentary.';
-
+const INPUT_FILE_NAMES = [
+  `B21 Cohort`,
+  `B21 Pad-13`,
+  `B21 IPP`,
+  `B20 Cohort`,
+  `B20 Pad-13`,
+  `B20 IPP`,
+  `B19 Cohort`,
+  `B19 Pad-13`,
+  `B19 IPP`,
+  `B19 Europe`,
+  `B18+B19 BSEM`,
+  `B18 Cohort`,
+  `B18 Pad-13`,
+  `B18 IPP`,
+  `B18 BSEM`,
+  `B17 Cohort`,
+  `B17 Pad-13`,
+  `B17 IPP`,
+  `B17 BSEM`,
+  `B16 Cohort`,
+  `B16 Pad-13`,
+  `B16 IPP`,
+  `B16 BSEM`,
+  `B15 Cohort`,
+  `B15 Pad-13`,
+  `B15 IPP`,
+  `B15 BSEM`,
+  `B14 Pad-13`,
+  `B14 IPP`,
+  `B14 Cohort`,
+  `B14 BSEM`,
+  `B13 SVV`,
+  `B13 Pad13IPP`,
+  `B13 IPP`,
+  `B13 Cohort`,
+  `B12 Pad-13`,
+  `B12 Hotdesk`,
+  `B12 GIP_UIP`,
+  `B12 Cohort`,
+  `B11 Hotdesk`,
+  `B11 GIP_UIP`,
+  `B11 Cohort`  
+];
+  
 function stripMarkdownCodeFence(text) {
   const trimmed = text.trim();
   const match = trimmed.match(/^```(?:csv)?\s*([\s\S]*?)\s*```$/i);
   return match ? match[1].trim() : trimmed;
 }
 
+let response = `Name\tTitle\tEmail\tPhone Number\tLinkedIn\tDEI\tCompany\tBatch\n`;
+
 async function parseSpreadsheetWithGemini(inputFileSource) {
-  const csvText = await fs.readFile(inputFileSource + ".csv", "utf8");
-  const outputFile = `${inputFileSource}-parsed.csv`;
+  const csvText = await fs.readFile("./data/" + inputFileSource + ".tsv", "utf8");
+  const outputFile = `./out/result-parsed.tsv`;
+ 
+  const rows = csvText.split('\n');
+  const headers = rows[0].split("\t");
+  const dataPoints = ["- Name", "- Title", "- Email", "Number", "- LinkedIn", "Optional:,DEI"];
+  
+  rows.forEach((row, j) => {
+    if (j > 0) {
+      const vals = row.split("\t");
+      let counted = 0;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `${PARSE_PROMPT}\n\nCSV input:\n${csvText}`,
-              },
-            ],
-          },
-        ],
-      }),
+
+      let k = -1;
+      for (let i = 1; i <= 3; i++) {
+        let curString = ''
+        dataPoints.forEach((point, k) => {
+          const idx = headers.findIndex(head => (head.includes(`${i}`) && point.split(",").some(p => head.toLowerCase().includes(p.toLowerCase()))));
+         
+          if (idx >= 0 && (curString.trim() || k == 0)) {
+            let add = vals[idx];
+            if ((point === "Optional:" || headers[idx] && headers[idx].includes("DEI"))  && vals[idx]) {
+              add = vals[idx].split(',').map((dei) => map[Object.keys(map).find(key => dei.includes(key))] ).filter(s => s && s.length > 0).join(',')
+            }
+            if (add) {
+ 
+              curString += add;
+            }
+          }
+          curString += "\t";
+          
+        })
+        if (curString.trim()) {
+          curString +=  vals[headers.findIndex(head => head.toLowerCase().includes("company name") || head.toLowerCase().includes("startup"))] + "\t" + inputFileSource;
+          response += curString.trim() + "\n";
+        }
+      }
     }
-  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Gemini API request failed with ${response.status}: ${errorText}`
-    );
-  }
+  })
 
-  const data = await response.json();
-  const parsedCsv = data.candidates?.[0]?.content?.parts
-    ?.map((part) => part.text || "")
-    .join("");
-
-  if (!parsedCsv) {
-    throw new Error("Gemini API response did not include CSV text.");
-  }
-
-  await fs.writeFile(outputFile, `${stripMarkdownCodeFence(parsedCsv)}\n`, "utf8");
+  await fs.writeFile(outputFile, `${stripMarkdownCodeFence(response)}\n`, "utf8");
   return outputFile;
 }
 
